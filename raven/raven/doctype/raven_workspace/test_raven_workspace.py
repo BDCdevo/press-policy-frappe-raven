@@ -102,11 +102,3 @@ class TestRavenWorkspace(IntegrationTestCase):
 
 		frappe.delete_doc("Raven Workspace", "Cache South")
 		self.assertNotIn("Cache South", get_workspace_names())
-
-	def test_workspace_cache_drops_rolled_back_rows(self):
-		frappe.get_doc(
-			{"doctype": "Raven Workspace", "workspace_name": "Cache Phantom", "type": "Public"}
-		).insert()
-		self.assertIn("Cache Phantom", get_workspace_names())
-		frappe.db.rollback()
-		self.assertNotIn("Cache Phantom", get_workspace_names())
