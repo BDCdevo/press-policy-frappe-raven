@@ -23,8 +23,28 @@ class RavenWorkspace(Document):
 	# end: auto-generated types
 
 	def after_insert(self):
+		# A save can't change the name; only insert, rename and delete touch the cached list.
+		self.invalidate_workspace_list_cache()
 		if not frappe.flags.in_patch:
 			self.create_member_for_owner()
+
+	def after_rename(self, old, new, merge=False):
+		self.invalidate_workspace_list_cache()
+
+	def after_delete(self):
+		self.invalidate_workspace_list_cache()
+
+	def invalidate_workspace_list_cache(self):
+		"""
+		Clears the list now, again after commit, since a request in between can rebuild it from
+		the old rows, and after a rollback, since this transaction may have cached rows that never
+		existed.
+		"""
+		from raven.api.workspaces import get_workspace_names
+
+		get_workspace_names.clear_cache()
+		frappe.db.after_commit.add(get_workspace_names.clear_cache)
+		frappe.db.after_rollback.add(get_workspace_names.clear_cache)
 
 	def on_trash(self):
 		# Delete all members when the workspace is deleted
