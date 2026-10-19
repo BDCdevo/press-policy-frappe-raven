@@ -73,7 +73,6 @@ def get_context(context):
 	return context
 
 
-@frappe.whitelist(methods=["POST"], allow_guest=True)
 def get_app_argument() -> str:
 	"""
 	This page's address for the Smart App Banner. The query stays: a message link's ?message_id= is in it.
@@ -86,6 +85,7 @@ def get_app_argument() -> str:
 	return frappe.utils.escape_html(frappe.utils.get_url(page))
 
 
+@frappe.whitelist(methods=["POST"], allow_guest=True)
 def get_context_for_dev():
 	if not frappe.conf.developer_mode:
 		frappe.throw(_("This method is only meant for developer mode"))
