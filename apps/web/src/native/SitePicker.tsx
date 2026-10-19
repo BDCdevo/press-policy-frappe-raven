@@ -7,6 +7,7 @@ import _ from "@lib/translate"
 import { cn } from "@lib/utils"
 import { revokeTokens, signIn, tokenStore } from "./auth"
 import { subscribeNativeKeyboard } from "./keyboard"
+import { subscribeSiteLinks } from "./linkIn"
 import { pendingLink, pendingNotice, pendingPath, pendingRelogin } from "./pending"
 import { unsubscribeSitePush } from "./push"
 import { completeSite, forgetSite, loadSites, normalizeSiteUrl, probeSite, saveSite, setDefaultSite, wipeAccountData, wipeSiteData, type ProbeResult, type Site } from "./sites"
@@ -147,10 +148,7 @@ export const SitePicker = () => {
     }, [])
 
     // A link from a browser: a saved site opens on it, any other waits in the form to be added.
-    // linkIn is imported here for the same reason as shareIn above.
     useEffect(() => {
-        let disposed = false
-        let unsubscribe = () => { }
         const offer = async (link: string) => {
             await pendingLink.set(link)
             const origin = new URL(link).origin
@@ -160,11 +158,8 @@ export const SitePicker = () => {
             const { host } = new URL(origin)
             setUrl(normalizeSiteUrl(host) === origin ? host : origin)
         }
-        pendingLink.peek().then((link) => { if (link && !disposed) void offer(link) }).catch(() => { })
-        import("./linkIn").then((m) => {
-            if (!disposed) unsubscribe = m.subscribeSiteLinks((link) => { void offer(link) })
-        }).catch(() => { })
-        return () => { disposed = true; unsubscribe() }
+        pendingLink.peek().then((link) => { if (link) void offer(link) }).catch(() => { })
+        return subscribeSiteLinks((link) => { void offer(link) })
     }, [])
 
     const run = async (key: string, action: () => Promise<void>) => {

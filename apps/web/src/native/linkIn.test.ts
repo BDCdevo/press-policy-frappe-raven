@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { linkAction, linkFromAppUrl, withOpened } from "./linkIn"
+import { linkAction, linkFromAppUrl, skipsLaunchEcho, withHandled } from "./linkIn"
 
 const site = "https://a.com/raven/ws/general"
 
@@ -22,16 +22,14 @@ describe("linkFromAppUrl", () => {
     })
 })
 
-describe("withOpened", () => {
-    it("keeps the launch link known after later links, so a reload doesn't replay it", () => {
-        const opened = withOpened(withOpened([], "raven://open?url=one"), "raven://open?url=two")
-        expect(opened).toContain("raven://open?url=one")
+describe("withHandled", () => {
+    it("keeps the launch link known however many links follow, so a reload never replays it", () => {
+        let handled = withHandled([], "raven://open?url=launch")
+        for (let i = 0; i < 50; i++) handled = withHandled(handled, `raven://open?url=${i}`)
+        expect(handled).toContain("raven://open?url=launch")
     })
-    it("keeps only the latest few", () => {
-        let opened: string[] = []
-        for (let i = 0; i < 30; i++) opened = withOpened(opened, `raven://open?url=${i}`)
-        expect(opened).toHaveLength(20)
-        expect(opened[19]).toBe("raven://open?url=29")
+    it("records a link once", () => {
+        expect(withHandled(withHandled([], "a"), "a")).toEqual(["a"])
     })
 })
 
@@ -46,5 +44,15 @@ describe("linkAction", () => {
     it("adds a site that isn't saved, with or without a site open", () => {
         expect(linkAction("https://c.com/raven/threads", "https://a.com", saved)).toBe("add")
         expect(linkAction("https://c.com/raven/threads", null, [])).toBe("add")
+    })
+})
+
+describe("skipsLaunchEcho", () => {
+    it("skips the event repeating the launch link boot opened, once", () => {
+        expect(skipsLaunchEcho("raven://open?url=a", "raven://open?url=a")).toBe(true)
+        expect(skipsLaunchEcho("raven://open?url=a", null)).toBe(false)
+    })
+    it("lets other links through", () => {
+        expect(skipsLaunchEcho("raven://open?url=b", "raven://open?url=a")).toBe(false)
     })
 })
