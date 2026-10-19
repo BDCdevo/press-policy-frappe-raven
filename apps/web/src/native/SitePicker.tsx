@@ -7,7 +7,7 @@ import _ from "@lib/translate"
 import { cn } from "@lib/utils"
 import { revokeTokens, signIn, tokenStore } from "./auth"
 import { subscribeNativeKeyboard } from "./keyboard"
-import { pendingNotice, pendingPath, pendingRelogin } from "./pending"
+import { pendingLink, pendingNotice, pendingPath, pendingRelogin } from "./pending"
 import { unsubscribeSitePush } from "./push"
 import { completeSite, forgetSite, loadSites, normalizeSiteUrl, probeSite, saveSite, setDefaultSite, wipeAccountData, wipeSiteData, type ProbeResult, type Site } from "./sites"
 import { versionAtLeast, versionMismatch } from "./version"
@@ -144,6 +144,27 @@ export const SitePicker = () => {
             // The sign-in may be another account: none of the last one's data may carry over to it.
             if (site) run(site.url, async () => { await wipeAccountData(site.url); await open(site) })
         })
+    }, [])
+
+    // A link from a browser: a saved site opens on it, any other waits in the form to be added.
+    // linkIn is imported here for the same reason as shareIn above.
+    useEffect(() => {
+        let disposed = false
+        let unsubscribe = () => { }
+        const offer = async (link: string) => {
+            await pendingLink.set(link)
+            const origin = new URL(link).origin
+            const site = (await loadSites()).find((s) => s.url === origin)
+            if (site) return run(site.url, () => open(site))
+            // As typed: the bare host, when the form reads it back to the same address.
+            const { host } = new URL(origin)
+            setUrl(normalizeSiteUrl(host) === origin ? host : origin)
+        }
+        pendingLink.peek().then((link) => { if (link && !disposed) void offer(link) }).catch(() => { })
+        import("./linkIn").then((m) => {
+            if (!disposed) unsubscribe = m.subscribeSiteLinks((link) => { void offer(link) })
+        }).catch(() => { })
+        return () => { disposed = true; unsubscribe() }
     }, [])
 
     const run = async (key: string, action: () => Promise<void>) => {

@@ -1,5 +1,6 @@
 import json
 import re
+from urllib.parse import quote
 
 import frappe
 import frappe.sessions
@@ -51,7 +52,11 @@ def get_context(context):
 	context["mask_icon"] = favicon or "/assets/raven/raven_logo.svg"
 	context["favicon_svg"] = favicon or "/assets/raven/raven_logo.svg"
 	context["favicon_ico"] = favicon or "/assets/raven/favicon.ico"
-	context["sitename"] = boot.get("sitename")
+	# Safari's Smart App Banner hands this page to the app, or offers the App Store without it.
+	# Percent-encoded: the path is the visitor's, and the template doesn't escape it.
+	context["app_argument"] = (
+		frappe.utils.get_url(quote(frappe.request.path, safe="/")) if frappe.request else ""
+	)
 
 	if frappe.session.user != "Guest":
 		capture("active_site", "raven")
